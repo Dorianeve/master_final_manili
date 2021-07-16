@@ -1,0 +1,768 @@
+---
+title: "ACAPS Humanitarian Access Methodology "
+subtitle: "Evaluation utilizing Bayesian Networks"
+author: "Claudia Manili"
+date: "July 2021"
+header-includes:
+  - \usepackage{tabularx}
+output: 
+  pdf_document:
+  extra_dependencies: ['tabularx']
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## load necessary packages
+library(BiocManager)
+library(bnlearn)
+library(graph)
+library(gRbase)
+library(grid)
+library(gRain)
+library(Hmisc)
+library(ggm)
+library(igraph)
+library(pcalg)
+library(catnet)
+library(RBGL)
+library(tidyr)
+library(stringr)
+library(dplyr)
+library(tidyverse)
+library(data.table)
+library(lubridate)
+library(naniar)
+library(Hmisc)
+
+## set universal path
+path <- '.'
+dir <- paste0(path, "/data/dataset.csv")
+
+## load data
+data <- read.csv(dir, sep = ";")
+
+## see data
+summary(data)
+
+## prepare data for analysis
+data <- data[,-1]
+cols <- names(data)
+## convert data to factors
+data[cols] <- lapply(data[cols], factor)
+sapply(data, class)
+```
+
+\begin{abstract}
+The aim of this study is to explore the analysis framework used by ACAPS, a project of the international NGO Norwegian Refugee Council, to assess and measure the humanitarian access constraints in operational settings. It does so by the analysis of the different components of the analysis framework, exploring and establishing connections between the utilized indicators. Bayesian networks is chosen as the probabilistic graphical model to explore the conditional dependencies between the set of used variables. This analysis will serve two purposes: a review of the current methodology, which can constitute the basis for methodology adjustments, and the final work of the Master in Data Science for Economics, Business and Finance of the University of Milan.
+\end{abstract}
+
+
+\tableofcontents
+
+\newpage
+
+\section{Introduction}
+"Humanitarian access" refers to the concept of the capacity of operational organization to provide emergency assistance in a specific contexts of needs, which can vary from conflict situations to sudden onset disasters (UN Coordination of Humanitarian Affairs, 2020). Mainly it refers to constraints imposed by specific situations on affected populations' capacity to access aid and services, on humanitarian actors' ability to reach those in need, and generic contextual constraints. Several humanitarian organizations and entities have tried to investigate the phenomenon utilizing a variety of indicators, in order to better understand the constraints and eventually measuring them with scoring systems.
+\newline ACAPS Humanitarian Access Methodology is a tentative analysis framework to investigate, understand and measure humanitarian access constraints within crisis contexts. It was developed starting from the "Humanitarian Access in Situations of Armed Conflict" manual of the Swiss Federal Department of Foreign Affairs FDFA (2014) and the Humanitarian Access Framework developed by OCHA (2017), identifying relevant common indicators and evaluating them against the knowledge and humanitarian analysis expertise of ACAPS.
+\newline ACAPS developed a way of collecting data on humanitarian access and measuring the specific indicators, creating a scoring system that allows comparability between situations and contexts. The aim goal of these paper does not concern an evaluation of the scoring system, instead it will utilize techniques of Artificial Intelligence, such as Bayesian Networks, to investigate the relationships between the different indicators utilized to measure humanitarian access and their dependency on each other. This will allow an evaluation of the current data collection methods, data categorization and data coding, aiming to an overall improvement of the methodology. Beyond that, as it will be presented, the data utilized for this analysis, allows an investigation on how the different indicators influence the perception of the humanitarian access constraints, comparing it against the actual measured constraints, somehow validating or refusing the classification ACAPS designed for measuring constraints.
+\newline The study will first present the analysis framework behind the humanitarian access measurements, the methodology followed for this paper, the analysis (launching the learning algorithm, followed by inference), the discussions of results and the conclusions, where some recommendations and potential usage scenarios will be presented.
+
+\section{Methodology}
+\subsection{Humanitarian Access Analysis Framework}
+The framework utilized by ACAPS involves the division into three core dimensions of investigation, called "Pillars":
+
+\begin{center}
+ \begin{tabular}{||c c||} 
+ \hline
+ 1 & Access of affected population to aid \\ 
+ \hline
+ 2 & Access of humanitarian actors to affected populations \\
+ \hline
+ 3 & Physical, environmental and security constraints \\
+ \hline
+\end{tabular}
+\end{center}
+
+Inside these three pillars there are nine indicators:
+
+\begin{center}
+ \begin{tabular}{||c c c||} 
+ \hline
+ Pillar 1 & Indicator 1 & Denial of existence of needs or entitlement to assistance \\ 
+ \hline
+ Pillar 1 & Indicator 2 & Restriction and obstruction of access to services and assistance \\
+ \hline
+ Pillar 2 & Indicator 3 & Impediments to entry into the country \\
+ \hline
+ Pillar 2 & Indicator 4 & Restriction of movements within the country \\ 
+ \hline
+ Pillar 2 & Indicator 5 & Interference into implementation of humanitarian activities \\
+ \hline
+ Pillar 2 & Indicator 6 & Violence against humanitarian personnel, facilities and assets \\
+ \hline
+ Pillar 3 & Indicator 7 & Ongoing insecurity and hostilities affecting humanitarian assistance \\ 
+ \hline
+ Pillar 3 & Indicator 8 & Presence of landmines, IEDs, ERWs or UXOs \\
+ \hline
+ Pillar 3 & Indicator 9 & Physical constraints in the environment \\
+ \hline
+\end{tabular}
+\end{center}
+
+These nine indicators have been measured in a variety of ways depending on the organizations, their mandate, and their interest in specific issues. Given ACAPS' mandate, belonging to an analysis domain and non-strictly operational environment, all the indicators have been object of studies and measurements. Regardless of the data collection methodology, ACAPS has developed sub-indicators for each listed indicator, given the broad dimension of each covered topic, that might contain a variety of different aspects. The division in sub-indicators, formulated as "conditions" which can be simply flagged as "Yes" (condition met), "No" (condition unmet) or "I don't know" (information gap), allows a certain degree of details and nuances. The sub-indicators are formulated as questions, making the methodology adapted to a primary data collection through questionnaires, with three options of answers, as stated above. In the following list, those questions are provided, pointing out the indicator they belong to, and how they are coded for the analysis purposes.
+
+Here the list of the sub-indicators, to be read as "indicator | sub-indicator code | question":
+\small
+\begin{itemize}
+\item 1 | Q1.1 | Do the local or national authorities deny the existence of humanitarian needs in the area?
+\item 1 | Q1.2 | Do the local or national authorities report different needs compared to the real situation in the area?
+\item 1 | Q1.3 | Are some group of people or some specific part of the territory denied right to assistance by rule or law?
+\item 2 | Q2.1 | Are there any travel restrictions enforced on people (such as besieged areas, or other restricted areas)?
+\item 2 | Q2.2 | Do people need any bureaucratic or administrative requirement to access assistance?
+\item 2 | Q2.3 | Are people being forced away from services?
+\item 3 | Q3.1 | Is the registration process to be able to operate in the area complex, costly or time consuming?
+\item 3 | Q3.2 | Is the authorization to operate in the area randomly assigned or denied?
+\item 3 | Q3.3 | Are there constraints on import of relief items or equipment, or on visa and permits for staff?
+\item 3 | Q3.4 | Are aid organizations systematically not allowed to operate in the area?
+\item 4 | Q4.1 | Is the territory controlled by different authorities other than the state?
+\item 4 | Q4.2 | Is there any taxes or fines or limits imposed on passage of goods to reach people in need in the area?
+\item 4 | Q4.3 | Do aid providers need to pass checkpoints to reach people in need in the area?
+\item 4 | Q4.4 | Is the passage to the affected areas closed?
+\item 4 | Q4.5 | Are agencies in the area ready to operate but on hold?
+\item 5 | Q5.1 | Is aid delivery influenced by conditions imposed by local authorities or other groups?
+\item 5 | Q5.2 | Are there special sanctions or CounterTerrorism measures in place in the area that affect the general roll out of operations?
+\item 5 | Q5.3 | Has aid been diverted or confiscated by authorities or groups?
+\item 6 | Q6.1 | Were aid workers killed or kidnapped?
+\item 6 | Q6.2 | Were aid workers targeted or injured?
+\item 6 | Q6.3 | Were humanitarian facilities targeted?
+\item 7 | Q7.1 | Does ongoing violence affect the movements of the population in need?
+\item 7 | Q7.2 | Public services, schools, hospitals or other civilian facilities are targeted?
+\item 7 | Q7.3 | Does ongoing violence lead to the relocation of humanitarian staff or suspension of operations?
+\item 8 | Q8.1 | Presence of landmines, IED, UXO or ERWs?
+\item 8 | Q8.2 | Are there victims of landmines, IED, UXO or ERWs?
+\item 9 | Q9.1 | Is it rainy or monsoon season?
+\item 9 | Q9.2 | Are infrastructures such as bridges, roads, airports severely disrupted?
+\item 9 | Q9.3 | Are there any constraints on consumable goods affecting the logistics of the operations (i.e. scarcity of fuel, embargoes, etc)?
+\item 9 | Q9.4 | Is considered a remote area (for geographic position)?
+\item X | Perception | How would you rate the access situation in this area? Please choose one.
+\end{itemize}
+\normalsize
+
+\subsection{Exploratory Data Analysis and  Methodology}
+Data was collected over more than one year, starting from 2020, in the framework of a partnership between ACAPS and external humanitarian agencies, interested in assessing the access constraints in the countries where they operate. A questionnaire reporting the listed questions was sent out, and compiled by selected people, who are most likely humanitarian professionals dealing with humanitarian access in the countries assessed and can be considered Key Informants. The questionnaires distributed contained different information regarding the geo-location of the assessed areas, and the possibility to provide additional qualitative information, in order to inform the main purpose of the analysis, which is a comprehensive understanding of the access constraints. For the purpose of this study, focused exclusively on the dependencies of the indicators and the perception expressed by the respondents, many fields of the original datasets were dropped.
+\newline For data confidentiality the dataset was anonymized: all the geo-information were dropped, along with any qualitative information provided. Data is therefore anonymous and no other information can be inferred from the data.
+
+\small
+```{r dataset, echo=TRUE}
+## see data
+summary(data)
+```
+\normalsize
+
+The dataset consists of 327 observations and 31 variables. There are three NAs in the column "Perception". Each column consist in an answer to a different question, as per list provided above. The answers have usually three options "yes / no / dnk", where "dnk" represents "I don't know", with the exception of "Q8.1", question on landmine contamination, which has four different answer options "confirmed / suspected / no / dnk", and question "Perception", which has the options "low / medium / high".
+\newline The technique to understand the dependencies and interactions of the indicators used in this paper belongs to the Bayesian networks. These are classes of \emph{graphical models} that allow a representation of the probabilistic dependencies between variables as a \emph{directed acyclic graph}, where each node represents one variables, and the arcs between them are the dependencies (Nagarajan, Scutari & Lèbre, 2013, p. 13). This is a case of categorical or discrete Bayesian Network, which are used to represent non-linear relationship between variables (Balov & Salzman, 2020, p. 1). After data manipulation, variables were converted from "characters" to "factors", in order to make the dataset compatible with the utilization of the learning algorithms.
+\newline In the first section, the study starts with "classification" to impute the missing values of the "Perception" variable, utilising a Naive Bayesian classificator algorithm. Once the dataset is completed, and NAs imputed, the study continues with the learning procedures and inference. A "blacklist" is created, meaning that connections that are not conceptually possible have been detected through "expert judgement" and prior knowledge, in order to prevent the learning algorithm to detect dependencies where they are not possible. After blacklisting, a variety of learning algorithms is launched to understand the data structure, and their performance is evaluated utilizing the domain knowledge of humanitarian access. Once the best algorithm is identified, in this case "Hybrid HPC", and utilized to learn the structure of the network, the global distribution of variables is estimated and the network fitted with "bayesian estimation" method, which allows a more robust inference and it is believed to be closed to "true" networks (Nagarajan, Scutari & Lèbre, 2013, p. 91; Koller and Friedman, 2009). Once the network is learned and the parameters estimated, the Junction Tree algorithm for belief updating it is used in the inference section, were there is an overview of how the variables depend on each other and varies. 
+\newline Are there dependencies between the humanitarian access indicators? If so, how much the variables influence each other? Are specific indicators influencing the perception of humanitarian access constraints? If the answer to some or all these questions is yes then the study could be actually used to better "tune" the access assessment methodology, or its findings can be of use for operational actors in order to be aware of misperception of the humanitarian access situations.
+
+\section{Analysis}
+\subsection{Classification to impute missing data}
+In this section, NaiveBayes and Tree Augmented algorithms are used and compared, with the aim of imputing the missing values in the dataset.
+\small
+```{r classification, warning = FALSE, fig.dim = c(5,3)}
+## prepare data for classification
+data[data == ""] <- NA
+## split the dataset into train and test
+train <- data %>% drop_na()
+test <- data[is.na(data$Perception),]
+test <- test[,-31]
+
+## classification
+## try Naive Bayes and Tree Augmented and evaluate performance
+nbcl <- naive.bayes(train, training = "Perception")
+nbcl.trained <- bn.fit(nbcl, train)
+tan <- tree.bayes(train, training = "Perception")
+tan.trained <- bn.fit(tan, train)
+
+## cross-validation on both models to evaluate the performances
+cv.nb <- bn.cv(nbcl, data = train, method = "k-fold", runs = 10)
+cv.tan <- bn.cv(tan, data = train, method = "k-fold", runs = 10)
+plot(cv.nb, cv.tan, xlab = c("NaiveBayes", "Tree-Augmented"))
+```
+\normalsize
+\newline
+Evaluating the performance of the two different algorithms through cross-validation shown in the boxplot, it is clear that NaiveBayes has a classification error of approximately 0.37, which better compared to Tree-Augmented (approx 0.41). It is used then to predict the missing data in the "test" set. Once predicted, they are merged back with the train set.
+\small
+```{r impute, warning = FALSE, fig.dim = c(5,3)}
+## predicting using NaiveBayes, who had better performance
+pred <- predict(nbcl.trained, test)
+test$Perception <- pred
+## joining the data imputing the predicted missing values
+data <- rbind(train, test)
+## check data
+summary(data)
+```
+\normalsize
+
+\subsection{Blacklisting}
+Before launching the learning algorithms, it is necessary to think about those indicators that could not depend on others, creating than what is called "blacklist". The process of blacklisting consists in dividing the variables in "numbered blocks", aiming to restrict the model selection by disallowing arc/edges that point from a later to an earlier block. Using the prior knowledge or "expert judgement" dividing the indicators in blocks, it is possible to aim for a more "plausible" structure to be discovered by the learning algorithms. The blacklisting is build by constructing an adjacency matrix containing the restricted edges, then converted into a dataframe, to be passed to the learning algorithms (Højsgaard, Edwards and Lauritzen, 2012, p.75).
+\small
+```{r blacklisting, echo=TRUE}
+## blacklisting
+block <- c(3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,1,1,1,3,1,1,4)
+blM <- matrix(0, nrow=31, ncol=31)
+rownames(blM) <- colnames(blM) <- names(data)
+for (b in 2:4) blM[block==b, block<b] <- 1
+blackL <- data.frame(get.edgelist(as(blM, "igraph"))) 
+names(blackL) <- c("from", "to")
+```
+\normalsize
+
+Indicators 8 and 9 - landmine contamination and environmental, physical and security constraints - are placed in the first block, meaning that they cannot be influenced by other variables, but they can influence the other blocks. Indicator 7 - active violence - is in block number two, meaning that it could be influenced by factors in group number 1, but it cannot be influenced by the other variables in block three or four. Indicators 1, 2, 3, 4, 5 and 6 are all in group three, being constraints that cannot influence the contextual variables (group 1) or the presence of hostilities (group 2), but they can be influenced by them. The last block, contains exclusively one variable "Perception", being potentially dependent by all the others. The only exception is the sub-indicator Q9.2 - status of infrastructures - which is placed in block 3, since it can be influenced also by active hostilities. One special remark is also necessary when it comes to "landmine contamination": this can certainly being dependent on active hostilities, however contamination is something that could be the results of previous hostilities, so not necessarily depending on the current violence.
+
+\subsection{Learning algorithms}
+Now that the dataset is complete, and a blacklist is identified, it can be used to launch the learning algorithms. Score-based algorithm (Hill-Climbing), constraint-based algorithms (Incremental Association, Max-Min Parents and Children, Semi-Interleaved HITON-PC) and hybrid-structure algorithm (Sparse Candidate, Max-Min Hill Climbing, Hybrid HPC) have been tested and their plausibility evaluated against the domain knowledge (see entire code in annexes). In this section the performance of Hill-Climbing and Hybrid HPC, being the most plausible models, are confronted (see attachments for the high definition graphs).
+Hill-Climbing algorithm:
+
+\small
+```{r hc, warning = FALSE, fig.dim = c(5,3)}
+## Hill-Climbing
+hc <- hc(data, blacklist = blackL)
+plot(as(amat(hc), "graphNEL"))
+```
+\normalsize
+
+Hybrid HPC algorithm (Gasse, Aussem and Elhazel, 2012):
+
+\small
+```{r h2pc, warning = FALSE, fig.dim = c(5,3)}
+## Hybrid HPC
+h2pc <- h2pc(data, blacklist = blackL)
+plot(as(amat(h2pc), "graphNEL"))
+```
+\normalsize
+
+Observing the two graphs' structures there are differences and similarities. The main difference is that Hybrid HPC identifies more "blocks" compared to Hill-Climbing, which instead has practically two main blocks, where one, is completely dependent on landmine contamination. This suggest at first sight an unplausible connection detected by the algorithm, also underlined by the relative length of the graph branches. For this reason is quite more convenient to have a look at the plausibility of Hybrid HPC. This algorithms suggests the existence of different blocks of dependencies: one depending mainly on people authorization to access services and the other on violence targeting people. Logistical constraints, violence against aid workers and landmine contamination are more scattered.
+It is interesting to describe the connections of the biggest blocks, which have been partially detected also by the Hill-Climbing algorithms.
+
+\begin{itemize}
+\item Q2.2 "People need of burocratic or administrative requirement to access assistance", seems to influence the probability of occurrence of Q3.1 "Registration process to operate, costly and time consuming", with influence Q1.2 and Q1.1, respectively authorities reporting discrepant needs compared to the real situation in the area and their denial of existence of needs of the concerned people. This suggest that probably these indicators are somehow flagging complications and issues deriving from authorities, who at the same time influence the access of humanitarian actors to people in need and the access of the population to services and aid.
+\item Q7.1 "Violence affecting movements of people in need" seems one of the most important nodes, suggesting how the presence of active hostilities are possibly influencing the occurrence of other constraints, such as presence of different actors controlling the territory (Q4.1), the operativity of humanitarian actors (Q4.5), interference on aid delivery (Q5.1), and violence targeting civilian facilities (Q7.2). The dependencies of these branches include the status of infrastructure (Q9.2), denial of access to aid and forced displacement(Q1.3 and Q2.3), CounterTerrorism measures and relocation of staff (Q5.2, Q7.3). In this branch it is interesting to point out how the Perception of constraints is influenced by the control of the territory by different groups, dependency that was flagged also by the Hill-Climbing algorithm. It seems that violence has one of the biggest influence within the access constraints, causing displacement, interruption of provision of aid and damages to infrastructure.
+\item Q9.3 on logistical constraints seems to influence the import of equipment and visa for the staff (Q3.3).
+\item the rest of the indicators, suggest either relatively implausible connections of  "standalone" conditions, such as landmine contamination, remoteness of the area, or the seasonality.
+\end{itemize}
+
+Now that Hybrid HPC is selected as the most plausible model, the identified network is fitted with the Bayesian estimation method, preferred to Maximum Likelihood because of its robustness, in order to get the global probability distribution of the variables, needed to proceed towards the inference section.
+
+\small
+```{r fit, warning = FALSE}
+## Bayesian estimation
+bay <- bn.fit(h2pc, data, method = "bayes")
+```
+\normalsize
+
+\subsection{Inference}
+Following the identification of the Bayesian network learning, data can be used to infer the state of some variables, given the state of others set as evidence. Data can be asked questions, through \emph{queries}, and the answering process is called \emph{belief updating} or \emph{probabilistic reasoning}. New evidence is set and the probability is therefore updated. The two terms \emph{belief updating} and \emph{probabilistic reasoning}, were first introduced by Pearl (1988), explaining the process as "submitting a \emph{query} to an \emph{expert} to get an opinion and \emph{update your beliefs} accordingly (Nagarajan, Scutari & Lèbre, 2013, p. 85).
+\newline First step to prepare the network for inference and avoid computational curse, is to transform the belief network in into a junction tree. The \emph{Junction Tree Clustering Algorithm} create a moral graph where the original nodes are clustered to reduce the network structure into a tree (Nagarajan, Scutari & Lèbre, 2013, p. 88).
+
+\small
+```{r tree, warning = FALSE, fig.dim=c(6,4)}
+## prepare for inference
+data_gr <- as.grain(bay)
+jtree <- compile(data_gr)
+plot(jtree, type = "jt", main = "Junction Tree")
+```
+\normalsize
+
+The Bayesian network identified is now a "junction tree", which can be utilized for inference.
+\newline
+Inference will be conducted by the identified branches: 
+\begin{itemize}
+\item Q2.2 - conditions or impediments deriving from rules and policies
+\item Q6.1 - violence targeting aid workers
+\item Q7.1 - general ongoing violence
+\item Q8.1 - landmine contamination
+\item Q9.3 - logistics impediments
+\end{itemize}
+
+Only interesting or logically relevant connections will be explored. The beliefs update code snippets have been nested in functions to facilitate the results' visualization.
+
+```{r inf_setup, include=FALSE}
+## exploration of beliefs updates of discrepancy of needs on denial of needs P(Q1.1|Q1.2)
+denial_needs <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q1.2", states = c("yes")),nodes=c("Q1.1"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.2", states = c("no")),nodes=c("Q1.1"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.2", states = c("dnk")),nodes=c("Q1.1"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## exploration of complex registration on discrepancy of needs P(Q1.2|Q3.1)
+discrepancy_needs <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q3.1", states = c("yes")),nodes=c("Q1.2"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.1", states = c("no")),nodes=c("Q1.2"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.1", states = c("dnk")),nodes=c("Q1.2"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## exploration of admin requirements to assistance on complex registration P(Q3.1|Q2.2)
+burocracy <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q2.2", states = c("yes")),nodes=c("Q3.1"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q2.2", states = c("no")),nodes=c("Q3.1"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q2.2", states = c("dnk")),nodes=c("Q3.1"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## violence on interference P(Q5.1|Q7.1)
+interference_violence <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("yes")),nodes=c("Q5.1"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("no")),nodes=c("Q5.1"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("dnk")),nodes=c("Q5.1"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## interference on denial right to assistance P(Q1.3|Q5.1)
+interference_assistance <- function (x) {
+    x <- unlist(querygrain(setFinding(jtree, nodes="Q5.1", states = c("yes")),nodes=c("Q1.3"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q5.1", states = c("no")),nodes=c("Q1.3"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q5.1", states = c("dnk")),nodes=c("Q1.3"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## denial on forced displacement P(Q2.3|Q1.3)
+denial_displacement <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q1.3", states = c("yes")),nodes=c("Q2.3"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.3", states = c("no")),nodes=c("Q2.3"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.3", states = c("dnk")),nodes=c("Q2.3"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## violence affecting movement of people on agencies on hold P(Q4.5|Q7.1)
+onhold_violence <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("yes")),nodes=c("Q4.5"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("no")),nodes=c("Q4.5"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("dnk")),nodes=c("Q4.5"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## violence towards civilians on counterterrorism measures P(Q5.2|Q7.2)
+violence_counterterrorism <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("yes")),nodes=c("Q5.2"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("no")),nodes=c("Q5.2"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("dnk")),nodes=c("Q5.2"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## violence towards civilians on relocation or suspension staff P(Q7.3|Q7.2)
+violence_operations <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("yes")),nodes=c("Q7.3"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("no")),nodes=c("Q7.3"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("dnk")),nodes=c("Q7.3"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+ 
+## logistical constraints on imports and visas P(Q3.3|Q9.3)
+log_imports <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q9.3", states = c("yes")),nodes=c("Q3.3"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q9.3", states = c("no")),nodes=c("Q3.3"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q9.3", states = c("dnk")),nodes=c("Q3.3"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## imports on checkpoints P(Q4.3|Q3.3)
+imports_checkpoints <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q3.3", states = c("yes")),nodes=c("Q4.3"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.3", states = c("no")),nodes=c("Q4.3"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.3", states = c("dnk")),nodes=c("Q4.3"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## landmine contamination on casualties P(Q8.2|Q8.1)
+landmine_casualties <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q8.1", states = c("suspected")),nodes=c("Q8.2"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q8.1", states = c("confirmed")),nodes=c("Q8.2"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q8.1", states = c("no")),nodes=c("Q8.2"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Suspected", "Confirmed", "Dnk")
+  print(x)
+}
+
+## exploration of beliefs updates of perception P(Perception|Q4.1)
+perception_territory <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q4.1", states = c("yes")),nodes=c("Perception"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q4.1", states = c("no")),nodes=c("Perception"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q4.1", states = c("dnk")),nodes=c("Perception"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+## perception variable P(Perception|Q7.1)
+perception_violence <- function (x) {
+  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("yes")),nodes=c("Perception"), type = "marginal"))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("no")),nodes=c("Perception"), type = "marginal")))
+  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("dnk")),nodes=c("Perception"), type = "marginal")))
+  x <- x[,-1]
+  rownames(x) <- c("Yes", "No", "Dnk")
+  print(x)
+}
+
+```
+
+\small
+```{r inference, warning = FALSE}
+## EXPLORATION OF BELIEFS UPDATES
+
+## discrepancy of needs reported on denial of needs P(Q1.1|Q1.2)
+denial_needs()
+## complex registration on discrepancy of needs P(Q1.2|Q3.1)
+discrepancy_needs()
+## admin requirements to access assistance on complex registration P(Q3.1|Q2.2)
+burocracy()
+## violence on interference in aid delivery P(Q5.1|Q7.1)
+interference_violence()
+## interference in aid delivery on denial of the right to assistance P(Q1.3|Q5.1)
+interference_assistance()
+## denial of right to assistance on forced displacement away from services P(Q2.3|Q1.3)
+denial_displacement()
+## violence on agencies being on hold P(Q4.5|Q7.1)
+onhold_violence()
+## violence on Counterterrorism measures affecting operations P(Q5.2|Q7.2)
+violence_counterterrorism()
+## violence on relocation of staff or suspension of operations P(Q7.3|Q7.2)
+violence_operations()
+## logistical goods constraints on imports and visas constraints P(Q3.3|Q9.3)
+log_imports()
+## imports and visa constraints on presence of checkpoints P(Q4.3|Q3.3)
+imports_checkpoints()
+## landmine contamination on casualties of landmines P(Q8.2|Q8.1)
+landmine_casualties()
+## territory controlled by different actors on perception P(Perception|Q4.1)
+perception_territory()
+## violence on perception P(Perception|Q7.1)
+perception_violence()
+
+```
+\normalsize
+
+\subsection{"Perception" against ACAPS Access Constraint Score}
+```{r access_setup, include=FALSE}
+## ACAPS SCORING METHOD
+## Cleaning
+toreplace <-  c("Q1.1", "Q1.2", "Q1.3",
+               "Q2.1", "Q2.2","Q2.3",
+               "Q3.1", "Q3.2", "Q3.3", "Q3.4",
+               "Q4.1", "Q4.2", "Q4.3", "Q4.4", "Q4.5",
+               "Q5.1", "Q5.2", "Q5.3",
+               "Q6.1", "Q6.2", "Q6.3",
+               "Q7.1", "Q7.2", "Q7.3",
+               "Q8.1", "Q8.2",
+               "Q9.1", "Q9.2", "Q9.3", "Q9.4")
+
+## Replace "yes" with 1 / "no" with 0 / "dnk" with 0 / "confirmed" with 1 / "suspected" with 0.5
+root <- data %>%
+  mutate_at(vars(all_of(toreplace)), ~ str_replace(., "yes", "1"))
+root <- root %>%
+  mutate_at(vars(all_of(toreplace)), ~ str_replace(., "no", "0"))
+root <- root %>%
+  mutate_at(vars(all_of(toreplace)), ~ str_replace(., "confirmed", "1"))
+root <- root %>%
+  mutate_at(vars(all_of(toreplace)), ~ str_replace(., "suspected", "0.5"))
+root <- root %>%
+  mutate_at(vars(all_of(toreplace)), ~ str_replace(., "dnk", "0"))
+root[toreplace] <- sapply(root[toreplace], as.numeric)
+
+q_scores <- root
+
+## score each column according to their relative weight
+q_scores$Q1.1 <- q_scores$Q1.1 * 0.3
+q_scores$Q1.2 <- q_scores$Q1.2 * 0.3
+q_scores$Q1.3 <- q_scores$Q1.3 * 0.4
+q_scores$Q2.1 <- q_scores$Q2.1 * 0.4
+q_scores$Q2.2 <- q_scores$Q2.2 * 0.3
+q_scores$Q2.3 <- q_scores$Q2.3 * 0.3
+q_scores$Q3.1 <- q_scores$Q3.1 * 0.1
+q_scores$Q3.2 <- q_scores$Q3.2 * 0.25
+q_scores$Q3.3 <- q_scores$Q3.3 * 0.1
+q_scores$Q3.4 <- q_scores$Q3.4 * 0.55
+q_scores$Q4.1 <- q_scores$Q4.1 * 0.3
+q_scores$Q4.2 <- q_scores$Q4.2 * 0.2
+q_scores$Q4.3 <- q_scores$Q4.3 * 0.1
+q_scores$Q4.4 <- q_scores$Q4.4 * 0.2
+q_scores$Q4.5 <- q_scores$Q4.5 * 0.2
+q_scores$Q5.1 <- q_scores$Q5.1 * 0.3
+q_scores$Q5.2 <- q_scores$Q5.2 * 0.3
+q_scores$Q5.3 <- q_scores$Q5.3 * 0.4
+q_scores$Q6.1 <- q_scores$Q6.1 * 0.4
+q_scores$Q6.2 <- q_scores$Q6.2 * 0.3
+q_scores$Q6.3 <- q_scores$Q6.3 * 0.3
+q_scores$Q7.1 <- q_scores$Q7.1 * 0.25
+q_scores$Q7.2 <- q_scores$Q7.2 * 0.25
+q_scores$Q7.3 <- q_scores$Q7.3 * 0.5
+q_scores$Q8.1 <- q_scores$Q8.1 * 0.45
+q_scores$Q8.2 <- q_scores$Q8.2 * 0.55
+q_scores$Q9.1 <- q_scores$Q9.1 * 0.25
+q_scores$Q9.2 <- q_scores$Q9.2 * 0.25
+q_scores$Q9.3 <- q_scores$Q9.3 * 0.25
+q_scores$Q9.4 <- q_scores$Q9.4 * 0.25
+
+## add column with results per indicator
+q_scores <- mutate(q_scores, I1 = q_scores$Q1.1 + q_scores$Q1.2 + q_scores$Q1.3)
+q_scores <- mutate(q_scores, I2 = q_scores$Q2.1 + q_scores$Q2.2 + q_scores$Q2.3)
+q_scores <- mutate(q_scores, I3 = q_scores$Q3.1 + q_scores$Q3.2 + q_scores$Q3.3 + q_scores$Q3.4)
+q_scores <- mutate(q_scores, I4 = q_scores$Q4.1 + q_scores$Q4.2 + q_scores$Q4.3 + q_scores$Q4.4 + q_scores$Q4.5)
+q_scores <- mutate(q_scores, I5 = q_scores$Q5.1 + q_scores$Q5.2 + q_scores$Q5.3)
+q_scores <- mutate(q_scores, I6 = q_scores$Q6.1 + q_scores$Q6.2 + q_scores$Q6.3)
+q_scores <- mutate(q_scores, I7 = q_scores$Q7.1 + q_scores$Q7.2 + q_scores$Q7.3)
+q_scores <- mutate(q_scores, I8 = q_scores$Q8.1 + q_scores$Q8.2)
+q_scores <- mutate(q_scores, I9 = q_scores$Q9.1 + q_scores$Q9.2 + q_scores$Q9.3 + q_scores$Q9.4)
+
+## scoring indicators according to thresholds
+q_scores$I1 <- sapply(q_scores$I1, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.3) {
+  1
+} else if (x <= 0.7) {
+  2
+} else {
+  3
+})
+
+q_scores$I2 <- sapply(q_scores$I2, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.3) {
+  1
+} else if (x <= 0.7) {
+  2
+} else {
+  3
+})
+
+q_scores$I3 <- sapply(q_scores$I3, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.25) {
+  1
+} else if (x <= 0.45) {
+  2
+} else {
+  3
+})
+
+
+q_scores$I4 <- sapply(q_scores$I4, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.3) {
+  1
+} else if (x <= 0.7) {
+  2
+} else {
+  3
+})
+
+q_scores$I5 <- sapply(q_scores$I5, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.3) {
+  1
+} else if (x <= 0.7) {
+  2
+} else {
+  3
+})
+
+q_scores$I6 <- sapply(q_scores$I6, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.3) {
+  1
+} else if (x <= 0.7) {
+  2
+} else {
+  3
+})
+
+q_scores$I7 <- sapply(q_scores$I7, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.3) {
+  1
+} else if (x <= 0.7) {
+  2
+} else {
+  3
+})
+
+q_scores$I8 <- sapply(q_scores$I8, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.225) {
+  1
+} else if (x <= 0.45) {
+  2
+} else {
+  3
+})
+
+q_scores$I9 <- sapply(q_scores$I9, function(x) if (x <= 0) {
+  0
+} else if (x <= 0.3) {
+  1
+} else if (x <= 0.7) {
+  2
+} else {
+  3
+})
+
+## new variable
+scores <- q_scores
+
+## summing and scoring pillars
+scores$P1 <- scores$I1 + scores$I2
+scores$P2 <- scores$I3 + scores$I4 + scores$I5 + scores$I6
+scores$P3 <- scores$I7 + scores$I8 + scores$I9
+
+scores$P1 <- sapply(scores$P1, function(x) if (x == 0) {
+  0
+} else if (x == 1) {
+  1
+} else if (x < 3) {
+  2
+} else if (x < 4) {
+  3
+} else if (x < 5) {
+  4
+} else {
+  5
+})
+
+scores$P2 <- sapply(scores$P2, function(x) if (x == 0) {
+  0
+} else if (x < 2) {
+  1
+} else if (x < 6) {
+  2
+} else if (x < 8) {
+  3
+} else if (x < 10) {
+  4
+} else {
+  5
+})
+
+scores$P3 <- sapply(scores$P3, function(x) if (x == 0) {
+  0
+} else if (x == 1) {
+  1
+} else if (x < 3) {
+  2
+} else if (x < 5) {
+  3
+} else if (x < 7) {
+  4
+} else {
+  5
+})
+
+
+## removing not useful columns
+scores <- subset(scores, select = -c(Q1.1, Q1.2, Q1.3, Q2.1, Q2.2, Q2.3, Q3.1, Q3.2, Q3.3, Q3.4, Q4.1, Q4.2, Q4.3, Q4.4, Q4.5, Q5.1, Q5.2, Q5.3, Q6.1, Q6.2, Q6.3, Q7.1, Q7.2, Q7.3, Q8.1, Q8.2, Q9.1, Q9.2, Q9.3, Q9.4))
+
+## mean pillars
+scores$MEAN <- round(rowMeans(select(scores, c(P1, P2, P3))))
+
+## giving final scores
+scores$FINAL <- ifelse(scores$I3 == 3, 5, scores$MEAN)
+
+## removing not useful columns
+scores <- subset(scores, select = -c(MEAN))
+
+## cohercing "perception" in numbers for comparison with score
+scores$Perception <- sapply(scores$Perception, function(x) if (x == "high") {
+  3
+} else if (x == "medium") {
+  2
+} else {
+  1
+})
+
+```
+The "Perception" variable is tested in this section against the actual humanitarian access constraints score, calculated with the utilization of the ACAPS methodology (Manili and Nika, 2020). Spearman correlation test is used to check if the perception ranking (high, medium, low - classified as 3, 2, 1) is correlated with the ranking given by the ACAPS methodology (1 to 5 where 1 is low and 5 is high constraints).
+\small
+```{r spearman, warning = FALSE}
+## running spearman comparison
+cor.test(scores$Perception, scores$FINAL, method = "spearman")
+```
+```{r spearman_plot, warning = FALSE, fig.dim=c(5,3), echo = FALSE}
+set.seed(3)
+ggplot(scores, aes(FINAL, Perception, color = Perception))+
+  geom_point(size=1.5, position=position_jitter(h=0.22,w=0.22))
+```
+
+\normalsize
+Spearman's rank correlation suggest that there is moderate positive correlation between the access constraints scores and the perception expressed by the respondents, which is significant given the very small p-value ($\rho{} = 0.54$ and $p-value < 2.2e-16$). The scoring methodology is somehow validated by the moderate correlation with the perception expressed by the key informants in the data collection phase.
+
+\section{Discussion}
+The beliefs updates give some interesting results, on how the probability parameters change with perturbations on the different nodes of the identified networks.
+
+\subsection{Authorities}
+The analysis shows that in case of occurrence of national authorities reporting different needs compared to the real situation, they also deny the existence of humanitarian needs in 19% of cases, versus the 6% occurrence in case they do not report discrepant needs ($P(Q1.1|Q1.2)$). This suggest that discrepancy in reports of humanitarian needs does not necessarily means that existence of needs is denied. The occurrence of complex registration process for the operational actors, seems to occur often in combination with the authorities reporting discrepant needs (49% of time - $P(Q1.2|Q3.1)$). Along with administrative requirements imposed to people in need, present in the 64% of cases when also complex registration process is imposed to the operating actors  ($P(Q3.1|Q2.2)$). On the other way round, when there are no requirements to access assistance on people in need, in the 75% of cases also there are no further administrative complications over the registration process. These connections flag the general tendency of having authorities requiring specific complicated registration procedures for both providing and receiving aid. This suggest that most likely, if conditions are imposed for receiving aid, they are also imposed to those who are providing aid.
+
+\subsection{Violence}
+The biggest branch of the network learned from the data, depends on node Q7.1 - Ongoing violence affecting populations' movements. In  $P(Q5.1|Q7.1)$ query, how the interference in aid delivery influence changes with the presence of active hostilities, we learned that if there is conflict, in 49% of cases there is aid delivery interference from local authorities or other groups. In the opposite case, of no violence, interference is not reported (86%). If the latter is reported, in 42% of cases authorities deny the right to assistance to people in need $P(Q1.3|Q5.1)$. Denial of right to assistance also is reported in 53% of cases when also forced displacement away from services is reported ($P(Q2.3|Q1.3)$). Violence also occurs in 32% of cases when humanitarian agencies are on hold despite being ready, however when violence is not reported agencies are operational in the 85% of cases ($P(Q4.5|Q7.1)$). This type of relationship is also observed between violence targeting civilian infrastructures and Counter Terrorism measures (in 32% of cases they coexist, and in 85% no measures reported if no violence  $P(Q5.2|Q7.2)$). When this type of violence is reported, also suspension of operations by humanitarian actors is reported in 57% of cases $P(Q7.3|Q7.2)$. It is interesting to notice how violence influence the interference in aid provision on one hand on the provider side, and on the recipients side. Interference is definitely more common when there is violence, along with the authorities or donors' response with CounterTerrorism measures, occurring more frequently when violence is ongoing. Violence towards infrastructures also influence the behavior of humanitarian actors in their operational decisions on security.
+
+\subsection{Logistics}
+Exploring one other identified cluster of connections, depending on what belongs to the logistical constraints (scarcity of consumable goods, embargoes, etc), it seems that if there are impediments of this nature, also in 53% of cases, there are import or visa constraints ($P(Q3.3|Q9.3)$). The latter seems also to be flagged in 86% of times when checkpoints in the territory are reported ($P(Q4.3|Q3.3)$). This might flag a general tendency of having logistical situations (internal or international) influencing the internal import or visa policies and the consequent internal enforcement through controls and checkpoints.
+
+\subsection{Perception}
+One identified connection, identified by all the launched learning algorithms, is the perception of constraints, expressed by the key informants, being influenced somehow by the territory being not controlled by the same authority ($P(Perception|Q4.1)$) and the presence of violence affecting people's movement ($P(Perception|Q7.1)$). If the territory is controlled by multiple actors, the access constraints are perceived as high (37%) and medium (46%), percentage that falls to 7% in case of high constraints perceived when the territory is entirely controlled by the same authority. If we explore the dynamics seeing the influence of the presence of violence (Q7.1), we can see that in case of violence, the expressed perception of constraints is high (30%) or medium (46%) in the majority of cases, but again in case no violence is reported, high constraints perceived fall down to 17%. This clearly suggests the impact of these two variables in influencing the perception the data collectors, in most cases humanitarian access officers in specific countries, when thinking about the humanitarian access constraints of a specific area.
+
+
+\section{Conclusions}
+Thinking about the described findings and the relationship between the different indicators overall it is possible to point out four main findings of relevance that, of course, can be declined and further explored:
+\begin{itemize}
+\item national authorities or armed groups in the countries of operations are likely to impose restrictions and administrative burdens on both population in need and operational actors;
+\item the presence of violence influence the roll out of humanitarian operations in terms of interference from authorities and armed groups, the denial of the right to assistance to needs, the forced displacement, and the operational-security strategy of humanitarian agencies;
+\item logistical contextual constraints, such as scarcity of resources or embargoes, are connected with the occurrence of constraints in importing relief items and obtaining visa for staff. The presence of checkpoints, likely seen as practical enforcement of constraints, are also connected with the occurrence of logistical constraints;
+\item the perception of the humanitarian constraints by the respondents seems primarily influenced by the control of the state territory by different authorities or actors, and the presence of violence.
+\end{itemize}
+This analysis of the humanitarian access methodology, through the utilization of Bayesian Networks, could be useful to inform the analysts or program officers facing access constraints in operational settings. Exploring the identified dependencies and connections between different indicators and sub-indicators, can be of help when facing access constraints: the occurrence of some of this conditions it is likely to influence or to occur in combination with other conditions. This can help analysts and officers to overcome information gaps regarding specific contexts or situations, by working on the assumptions suggested in these paper of simultaneous occurrence of specific constraints. This might be particularly useful in volatile situations or sudden onset disasters, where the context might change rapidly and humanitarian actors are asked to take action in a timely manner. 
+\newline It is of particular interest the analysis on the perception of the constraints based on the answers of the respondents: the correlation with the ACAPS methodology access constraints scoring system is moderate and significant, flagging that the methodology quite grasps the access constraints perceived by the staff. If the personal perception is not objective and cannot be used as measure comparing context, certainly it can be used as an instrument to validate somehow a scoring system who tries to compare different situations providing measurements. 
+\newline Looking at the perception from a different point of view also, it can be useful to consider that it seems to be influenced by the occurrence of the mentioned conditions: territory not controlled by the same authority and presence of violence. An operational agency, can consider that access constraints' perception might be particularly influenced by the existence of these specific conditions, potentially shaping the analysis in a way that could avoid biases or misrepresentation of the access situations.
+
+
+\section{References}
+
+Balov, N., Salzman, P., (2020), "How to use the catnet package" \emph{R-project.org} [online]. Available at https://cran.r-project.org/web/packages/catnet/vignettes/catnet.pdf
+
+Federal Department of Foreign Affairs FDFA, (2014), "Humanitarian Access in Situations of Armed Conflict", \emph{Confédération Suisse} [online]. Available at https://www.eda.admin.ch/dam/eda/en/documents/aussenpolitik/voelkerrecht/Human-access-in-sit-of-armed-conflict-manual_EN.pdf
+
+Gasse M., Aussem A., Elghazel H. (2012) "An Experimental Comparison of Hybrid Algorithms for Bayesian Network Structure Learning." In: Flach P.A., De Bie T., Cristianini N. \emph{Machine Learning and Knowledge Discovery in Databases ECML PKDD 2012. Lecture Notes in Computer Science}, vol 7523. Springer, Berlin, Heidelberg. https://doi.org/10.1007/978-3-642-33460-3_9
+
+Højsgaard, S., Edwards, D., Lauritzen, S., (2012), \emph{Graphical Models with R}, Springer, New York.
+
+Koller, D., Friedman, N., (2009), \emph{Probabilistic graphical models: principles and techniques}, MIT Press, Cambridge.
+
+Manili, C., Nika, A., (2020), "Humanitarian Access, Methodology Note", \emph{ACAPS} [online]. Available at https://www.acaps.org/sites/acaps/files/key-documents/files/20200608_acaps_access_technical_brief_july_2020_update.pdf
+
+Nagarajan, R., Scutari, M., Lèbre, S., (2013), \emph{Bayesian Networks in R with Applications in Systems Biology}, Springer, New York.
+
+UNOCHA, (2017), "Humanitarian Access", \emph{OCHA on Message} [online]. Available at https://www.unocha.org/sites/unocha/files/dms/Documents/OOM-humanitarianAccess_eng_April2017.pdf
+
