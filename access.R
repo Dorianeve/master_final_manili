@@ -233,119 +233,56 @@ data_gr <- as.grain(bay)
 jtree <- compile(data_gr)
 plot(jtree, type = "jt", main = "Junction Tree")
 
-## Creation of functions facilitating the visual output
+## Creation of belief_update() functions for nodes with "Yes", "No, "Dnk" parameters
+## Function parameters: x = grain object, y = evidence, z = node for which the conditional distribution is requested
 
-## exploration of beliefs updates of discrepancy of needs on denial of needs P(Q1.1|Q1.2)
-denial_needs <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q1.2", states = c("yes")),nodes=c("Q1.1"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.2", states = c("no")),nodes=c("Q1.1"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.2", states = c("dnk")),nodes=c("Q1.1"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
+belief_update <- function (x, y, z) {
+  output <- unlist(querygrain(setFinding(x, nodes = y, states = c("yes")),
+                              nodes= z, type = "marginal"))
+  output <- rbind(output,  unlist(querygrain(setFinding(x, nodes= y, states = c("no")),
+                                             nodes = z, type = "marginal")))
+  output <- rbind(output,  unlist(querygrain(setFinding(x, nodes= y, states = c("dnk")),
+                                             nodes = z, type = "marginal")))
+  output <- output[,-1]
+  rownames(output) <- c("Yes", "No", "Dnk")
+  print(output)
 }
+
+## exploration of discrepancy of needs on denial of needs P(Q1.1|Q1.2)
+belief_update(jtree, "Q1.2", "Q1.1")
 
 ## exploration of complex registration on discrepancy of needs P(Q1.2|Q3.1)
-discrepancy_needs <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q3.1", states = c("yes")),nodes=c("Q1.2"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.1", states = c("no")),nodes=c("Q1.2"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.1", states = c("dnk")),nodes=c("Q1.2"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q3.1", "Q1.2")
 
 ## exploration of admin requirements to assistance on complex registration P(Q3.1|Q2.2)
-burocracy <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q2.2", states = c("yes")),nodes=c("Q3.1"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q2.2", states = c("no")),nodes=c("Q3.1"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q2.2", states = c("dnk")),nodes=c("Q3.1"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q2.2", "Q3.1")
 
 ## violence on interference P(Q5.1|Q7.1)
-interference_violence <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("yes")),nodes=c("Q5.1"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("no")),nodes=c("Q5.1"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("dnk")),nodes=c("Q5.1"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q7.1", "Q5.1")
 
 ## interference on denial right to assistance P(Q1.3|Q5.1)
-interference_assistance <- function (x) {
-    x <- unlist(querygrain(setFinding(jtree, nodes="Q5.1", states = c("yes")),nodes=c("Q1.3"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q5.1", states = c("no")),nodes=c("Q1.3"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q5.1", states = c("dnk")),nodes=c("Q1.3"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q5.1", "Q1.3")
 
 ## denial on forced displacement P(Q2.3|Q1.3)
-denial_displacement <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q1.3", states = c("yes")),nodes=c("Q2.3"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.3", states = c("no")),nodes=c("Q2.3"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q1.3", states = c("dnk")),nodes=c("Q2.3"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q1.3", "Q2.3")
 
 ## violence affecting movement of people on agencies on hold P(Q4.5|Q7.1)
-onhold_violence <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("yes")),nodes=c("Q4.5"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("no")),nodes=c("Q4.5"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("dnk")),nodes=c("Q4.5"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q7.1", "Q4.5")
 
 ## violence towards civilians on counterterrorism measures P(Q5.2|Q7.2)
-violence_counterterrorism <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("yes")),nodes=c("Q5.2"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("no")),nodes=c("Q5.2"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("dnk")),nodes=c("Q5.2"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q7.2", "Q5.2")
 
 ## violence towards civilians on relocation or suspension staff P(Q7.3|Q7.2)
-violence_operations <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("yes")),nodes=c("Q7.3"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("no")),nodes=c("Q7.3"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.2", states = c("dnk")),nodes=c("Q7.3"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
- 
+belief_update(jtree, "Q7.2", "Q7.3")
+
 ## logistical constraints on imports and visas P(Q3.3|Q9.3)
-log_imports <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q9.3", states = c("yes")),nodes=c("Q3.3"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q9.3", states = c("no")),nodes=c("Q3.3"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q9.3", states = c("dnk")),nodes=c("Q3.3"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q9.3", "Q3.3")
 
 ## imports on checkpoints P(Q4.3|Q3.3)
-imports_checkpoints <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q3.3", states = c("yes")),nodes=c("Q4.3"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.3", states = c("no")),nodes=c("Q4.3"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q3.3", states = c("dnk")),nodes=c("Q4.3"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q3.3", "Q4.3")
 
-## landmine contamination on casualties P(Q8.2|Q8.1)
+## customizing the function for landmine contamination variable which has different parameters
+### landmine contamination on casualties P(Q8.2|Q8.1<)
 landmine_casualties <- function (x) {
   x <- unlist(querygrain(setFinding(jtree, nodes="Q8.1", states = c("suspected")),nodes=c("Q8.2"), type = "marginal"))
   x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q8.1", states = c("confirmed")),nodes=c("Q8.2"), type = "marginal")))
@@ -355,25 +292,13 @@ landmine_casualties <- function (x) {
   print(x)
 }
 
+landmine_casualties()
+
 ## exploration of beliefs updates of perception P(Perception|Q4.1)
-perception_territory <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q4.1", states = c("yes")),nodes=c("Perception"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q4.1", states = c("no")),nodes=c("Perception"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q4.1", states = c("dnk")),nodes=c("Perception"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q4.1", "Perception")
 
 ## violence on perception variable P(Perception|Q7.1)
-perception_violence <- function (x) {
-  x <- unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("yes")),nodes=c("Perception"), type = "marginal"))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("no")),nodes=c("Perception"), type = "marginal")))
-  x <- rbind(x,  unlist(querygrain(setFinding(jtree, nodes="Q7.1", states = c("dnk")),nodes=c("Perception"), type = "marginal")))
-  x <- x[,-1]
-  rownames(x) <- c("Yes", "No", "Dnk")
-  print(x)
-}
+belief_update(jtree, "Q7.1", "Perception")
 
 #############################################################
 #############################################################
